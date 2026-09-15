@@ -5,14 +5,15 @@
 #define LOG_HZ 100
 
 //define callback
-void log_periodic() {
+void log_periodic(void* arg) {
     LogFrame log;
     log.esp_seconds = esp_timer_get_time();
     push_frame(log);
 }
 
+//entry point
 void app_main(void) {
-    //configure timer
+    init_log();
     const esp_timer_create_args_t timer_args = {
         .callback = &log_periodic,
         .name = "log_timer"

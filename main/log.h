@@ -1,17 +1,19 @@
+#pragma once
+
 #include <stdint.h>
 
 typedef struct {
     int64_t esp_seconds;
-    double velocity;
-    double acceleration;
-    double height;
-    double time;
-    int degrees;
-    double brake_position;
+    float velocity;
+    float acceleration;
+    float height;
+    float time;
+    float degrees;
+    float brake_position;
 
 } LogFrame;
 
-void init();
+void init_log();
 
 void push_frame(LogFrame lf);
 
