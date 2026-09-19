@@ -1,0 +1,9 @@
+/target
+.embuild/
+sdkconfig
+sdkconfig.old
+.cargo/registry/
+.cargo/git/
+*.bin
+flight.bin
+.DS_Store
