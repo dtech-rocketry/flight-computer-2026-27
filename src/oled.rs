@@ -134,7 +134,6 @@ where
     pub async fn render<'a>(
         &mut self,
         telemetry: &Telemetry,
-        log_lines: impl Iterator<Item = &'a str>,
     ) -> Result<(), E> {
         self.clear();
 
@@ -152,18 +151,6 @@ where
         let _ = write!(line, "VBUS {}mV", telemetry.vbus_mv);
         let _ = Text::with_baseline(&line, Point::new(0, 11), TEXT_STYLE, Baseline::Top)
             .draw(self);
-
-        // Log window: remaining rows below the power summary + a 1px gap.
-        let log_top = 24;
-        let line_height = 10;
-        for (i, text) in log_lines.enumerate() {
-            let y = log_top + (i as i32) * line_height;
-            if y + line_height > HEIGHT as i32 {
-                break;
-            }
-            let _ = Text::with_baseline(text, Point::new(0, y), TEXT_STYLE, Baseline::Top)
-                .draw(self);
-        }
 
         self.flush().await
     }

@@ -16,7 +16,7 @@ use esp_hal::i2c::master::{Config as I2cConfig, I2c};
 use esp_hal::timer::timg::TimerGroup;
 use flight_computer_2026_27::oled::Oled;
 use flight_computer_2026_27::power::Power;
-use flight_computer_2026_27::{logbuf, pins};
+use flight_computer_2026_27::{pins};
 use log::{info, warn};
 
 extern crate alloc;
@@ -34,7 +34,7 @@ async fn main(spawner: Spawner) -> ! {
     // generator version: 1.4.0
     // generator parameters: -o esp32s3 -o unstable-hal -o alloc -o embassy -o stack-smashing-protection -o log -o esp-backtrace -o helix -o vscode -o esp
 
-    logbuf::init();
+    esp_println::logger::init_logger(log::LevelFilter::Info);
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
@@ -108,11 +108,8 @@ async fn telemetry_display_task(
             Default::default()
         });
 
-        let mut log_lines = heapless::Vec::<logbuf::LogLine, { logbuf::LOG_CAPACITY }>::new();
-        logbuf::snapshot(&mut log_lines);
-
         if let Err(_e) = oled
-            .render(&telemetry, log_lines.iter().map(|l| l.as_str()))
+            .render(&telemetry)
             .await
         {
             warn!("failed to update OLED");
