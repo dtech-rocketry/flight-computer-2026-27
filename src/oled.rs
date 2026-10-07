@@ -131,7 +131,7 @@ where
 
     /// Draws a power-telemetry summary plus the most recent log lines
     /// (oldest first, newest last) and pushes the frame to the display.
-    pub async fn render<'a>(
+    pub async fn render(
         &mut self,
         telemetry: &Telemetry,
     ) -> Result<(), E> {

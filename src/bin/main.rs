@@ -16,7 +16,7 @@ use esp_hal::i2c::master::{Config as I2cConfig, I2c};
 use esp_hal::timer::timg::TimerGroup;
 use flight_computer_2026_27::oled::Oled;
 use flight_computer_2026_27::power::Power;
-use flight_computer_2026_27::{pins};
+use flight_computer_2026_27::pins;
 use log::{info, warn};
 
 extern crate alloc;
