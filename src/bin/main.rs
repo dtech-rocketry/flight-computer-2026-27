@@ -93,6 +93,10 @@ async fn main(spawner: Spawner) -> ! {
     }
 }
 
+// TODO: add main flight loop task
+
+// TODO: add ground comms task
+
 #[allow(
     clippy::large_stack_frames,
     reason = "the OLED framebuffer (128x8 bytes) and PMU driver live in this task's state"
