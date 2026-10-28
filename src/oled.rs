@@ -17,6 +17,8 @@ use embedded_graphics::text::{Baseline, Text};
 use embedded_hal_async::i2c::I2c as AsyncI2c;
 use heapless::{Deque, String};
 
+use crate::flight::FlightState;
+use crate::lora::RadioStatus;
 use crate::pins;
 use crate::power::Telemetry;
 
@@ -225,27 +227,42 @@ where
         }
     }
 
-    /// Draws a power-telemetry summary plus the most recent log lines
-    /// (oldest first, newest last) and pushes the frame to the display.
+    /// Draws the current flight state plus a power-telemetry summary and
+    /// pushes the frame to the display. `radio_status` is `None` when no
+    /// LoRa radio was detected at init.
     pub async fn render(
         &mut self,
+        flight_state: FlightState,
         telemetry: &Telemetry,
+        radio_status: Option<RadioStatus>,
     ) -> Result<(), E> {
         self.clear();
 
         let mut line: String<32> = String::new();
+
+        let _ = write!(line, "STATE {}", flight_state.label());
+        let _ = Text::with_baseline(&line, Point::new(0, 0), TEXT_STYLE, Baseline::Top)
+            .draw(self);
 
         line.clear();
         let _ = match telemetry.battery_percent {
             Some(pct) => write!(line, "BAT {}mV {}%", telemetry.battery_mv, pct),
             None => write!(line, "BAT {}mV --%", telemetry.battery_mv),
         };
-        let _ = Text::with_baseline(&line, Point::new(0, 0), TEXT_STYLE, Baseline::Top)
+        let _ = Text::with_baseline(&line, Point::new(0, 11), TEXT_STYLE, Baseline::Top)
             .draw(self);
 
         line.clear();
         let _ = write!(line, "VBUS {}mV", telemetry.vbus_mv);
-        let _ = Text::with_baseline(&line, Point::new(0, 11), TEXT_STYLE, Baseline::Top)
+        let _ = Text::with_baseline(&line, Point::new(0, 22), TEXT_STYLE, Baseline::Top)
+            .draw(self);
+
+        line.clear();
+        let _ = match radio_status {
+            Some(status) => write!(line, "RADIO {}", status.label()),
+            None => write!(line, "RADIO N/A"),
+        };
+        let _ = Text::with_baseline(&line, Point::new(0, 33), TEXT_STYLE, Baseline::Top)
             .draw(self);
 
         self.flush().await

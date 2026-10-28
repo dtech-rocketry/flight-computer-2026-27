@@ -1,18 +1,10 @@
 //! Flight state machine: idle -> armed -> burn -> coast -> descent -> landed.
-//!
-//! `next_state` is a pure function so the transition logic can be unit
-//! tested without any hardware. The task at the bottom just wires it up to
-//! a sensor-reading loop.
 
-/// One sensor sample used to decide state transitions.
-///
-/// Placeholder until an IMU/barometer driver exists -- wire real readings
-/// in here once one does.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct SensorSample {
-    /// Vertical acceleration, in g, with +1g baseline removed (so ~0 at rest).
+    /// vertical acceleration, in g, with +1g baseline removed (so ~0 at rest).
     pub accel_g: f32,
-    /// Altitude above the pad, in meters.
+    /// altitude above the pad, in meters.
     pub altitude_m: f32,
 }
 
@@ -26,8 +18,46 @@ pub enum FlightState {
     Landed,
 }
 
-/// Consecutive samples a threshold must hold for before a transition fires,
-/// so sensor noise alone can't flip the state.
+impl FlightState {
+    pub const fn label(self) -> &'static str {
+        match self {
+            FlightState::Idle => "IDLE",
+            FlightState::Armed => "ARMED",
+            FlightState::Burn => "BURN",
+            FlightState::Coast => "COAST",
+            FlightState::Descent => "DESCENT",
+            FlightState::Landed => "LANDED",
+        }
+    }
+
+    /// encodes as a `u8` so the state can live in an [`core::sync::atomic::AtomicU8`]
+    /// shared between the flight loop and display tasks.
+    pub const fn to_u8(self) -> u8 {
+        match self {
+            FlightState::Idle => 0,
+            FlightState::Armed => 1,
+            FlightState::Burn => 2,
+            FlightState::Coast => 3,
+            FlightState::Descent => 4,
+            FlightState::Landed => 5,
+        }
+    }
+
+    /// inverse of [`FlightState::to_u8`]. Any value outside `0..=5` (should
+    /// not happen since it's only ever written via `to_u8`) falls back to
+    /// `Idle`.
+    pub const fn from_u8(value: u8) -> Self {
+        match value {
+            1 => FlightState::Armed,
+            2 => FlightState::Burn,
+            3 => FlightState::Coast,
+            4 => FlightState::Descent,
+            5 => FlightState::Landed,
+            _ => FlightState::Idle,
+        }
+    }
+}
+
 const DEBOUNCE_SAMPLES: u8 = 5;
 
 const BURN_START_ACCEL_G: f32 = 2.0;
@@ -82,13 +112,7 @@ impl FlightComputer {
     }
 }
 
-/// Pure transition function: given the current state and a sample, what
-/// state should come next? Returns `current` unchanged when no transition
-/// condition is met.
-///
-/// Arming (idle -> armed) and launch detection (armed -> burn) are
-/// threshold-based here; swap in a ground-command trigger for arming once
-/// comms exist.
+
 fn next_state(current: FlightState, sample: SensorSample, peak_altitude_m: f32) -> FlightState {
     match current {
         FlightState::Idle => FlightState::Idle,

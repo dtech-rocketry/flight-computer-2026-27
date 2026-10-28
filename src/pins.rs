@@ -25,3 +25,13 @@ pub const OLED_I2C_ADDRESS_FALLBACK: u8 = 0x3C;
 /// board-level status LED exposed in LilyGo's reference pin map. If you wire
 /// up your own bring-up LED, pick a free GPIO and avoid this one.
 pub const LORA_BUSY: u8 = 4;
+
+/// LoRa SX1262 SPI bus + control lines. Verified against Meshtastic's
+/// `variants/esp32s3/tbeam-s3-core/variant.h`, which targets this same
+/// board (confirmed by matching `I2C_SDA1`/`SCL1`/`PMU_IRQ` above).
+pub const LORA_SCK: u8 = 12;
+pub const LORA_MISO: u8 = 13;
+pub const LORA_MOSI: u8 = 11;
+pub const LORA_NSS: u8 = 10;
+pub const LORA_RESET: u8 = 5;
+pub const LORA_DIO1: u8 = 1;

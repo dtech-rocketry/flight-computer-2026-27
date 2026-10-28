@@ -7,20 +7,29 @@
 )]
 #![deny(clippy::large_stack_frames)]
 
+use core::sync::atomic::{AtomicU8, Ordering};
+
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::Async;
 use esp_hal::clock::CpuClock;
+use esp_hal::gpio::{Input, InputConfig, Level, Output, OutputConfig};
 use esp_hal::i2c::master::{Config as I2cConfig, I2c};
+use esp_hal::spi::Mode as SpiMode;
+use esp_hal::spi::master::{Config as SpiConfig, Spi};
+use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
-use flight_computer_2026_27::flight::{FlightComputer, SensorSample};
+use flight_computer_2026_27::flight::{FlightComputer, FlightState, SensorSample};
+use flight_computer_2026_27::lora::Radio;
 use flight_computer_2026_27::oled::Oled;
 use flight_computer_2026_27::power::Power;
 use flight_computer_2026_27::pins;
 use log::{info, warn};
 
 extern crate alloc;
+
+static FLIGHT_STATE: AtomicU8 = AtomicU8::new(0);
 
 // This creates a default app-descriptor required by the esp-idf bootloader.
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
@@ -72,10 +81,36 @@ async fn main(spawner: Spawner) -> ! {
         .with_scl(peripherals.GPIO18)
         .into_async();
 
+    // pin numbers must match `pins::LORA_SCK`/`LORA_MISO`/`LORA_MOSI`.
+    let lora_spi = Spi::new(
+        peripherals.SPI2,
+        SpiConfig::default()
+            .with_frequency(Rate::from_mhz(4))
+            .with_mode(SpiMode::_0),
+    )
+    .expect("failed to configure LoRa SPI bus")
+    .with_sck(peripherals.GPIO12)
+    .with_mosi(peripherals.GPIO11)
+    .with_miso(peripherals.GPIO13)
+    .into_async();
+
+    let lora_nss = Output::new(peripherals.GPIO10, Level::High, OutputConfig::default());
+    let lora_reset = Output::new(peripherals.GPIO5, Level::High, OutputConfig::default());
+    let lora_dio1 = Input::new(peripherals.GPIO1, InputConfig::default());
+    let lora_busy = Input::new(peripherals.GPIO4, InputConfig::default());
+
+    let radio = match Radio::new(lora_spi, lora_nss, lora_reset, lora_dio1, lora_busy).await {
+        Ok(radio) => Some(radio),
+        Err(e) => {
+            warn!("LoRa radio init failed: {:?}; continuing without broadcast", e);
+            None
+        }
+    };
+
     match Oled::new(oled_i2c).await {
         Ok(oled) => {
             spawner.spawn(
-                telemetry_display_task(power, oled)
+                telemetry_display_task(power, oled, radio)
                     .expect("failed to spawn OLED display task"),
             );
         }
@@ -100,10 +135,8 @@ async fn main(spawner: Spawner) -> ! {
 
 // TODO: add ground comms task
 
-/// Runs the flight state machine at a fixed rate.
-///
-/// Currently fed a zeroed `SensorSample` -- replace with real IMU/
-/// barometer readings once a driver for that hardware exists.
+/// currently fed a zeroed `SensorSample` need to replace with real imu/
+/// barometer readings once a driver for that exists.
 #[embassy_executor::task]
 async fn flight_loop_task() -> ! {
     let mut flight = FlightComputer::default();
@@ -112,6 +145,7 @@ async fn flight_loop_task() -> ! {
     loop {
         let sample = SensorSample::default();
         let state = flight.update(sample);
+        FLIGHT_STATE.store(state.to_u8(), Ordering::Relaxed);
 
         if state != last_state {
             info!("flight state: {:?} -> {:?}", last_state, state);
@@ -124,21 +158,29 @@ async fn flight_loop_task() -> ! {
 
 #[allow(
     clippy::large_stack_frames,
-    reason = "the OLED framebuffer (128x8 bytes) and PMU driver live in this task's state"
+    reason = "the OLED framebuffer (128x8 bytes), PMU driver, and LoRa radio/SPI state live \
+    in this task's state"
 )]
 #[embassy_executor::task]
 async fn telemetry_display_task(
     mut power: Power<I2c<'static, Async>>,
     mut oled: Oled<I2c<'static, Async>>,
+    mut radio: Option<Radio>,
 ) -> ! {
     loop {
         let telemetry = power.read_telemetry().await.unwrap_or_else(|_| {
             warn!("failed to read PMU telemetry");
             Default::default()
         });
+        let flight_state = FlightState::from_u8(FLIGHT_STATE.load(Ordering::Relaxed));
 
+        if let Some(radio) = radio.as_mut() {
+            radio.broadcast(flight_state, &telemetry).await;
+        }
+
+        let radio_status = radio.as_ref().map(|r| r.status());
         if let Err(_e) = oled
-            .render(&telemetry)
+            .render(flight_state, &telemetry, radio_status)
             .await
         {
             warn!("failed to update OLED");
