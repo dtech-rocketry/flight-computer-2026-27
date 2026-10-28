@@ -14,6 +14,7 @@ use esp_hal::Async;
 use esp_hal::clock::CpuClock;
 use esp_hal::i2c::master::{Config as I2cConfig, I2c};
 use esp_hal::timer::timg::TimerGroup;
+use flight_computer_2026_27::flight::{FlightComputer, SensorSample};
 use flight_computer_2026_27::oled::Oled;
 use flight_computer_2026_27::power::Power;
 use flight_computer_2026_27::pins;
@@ -83,6 +84,10 @@ async fn main(spawner: Spawner) -> ! {
                 pins::OLED_I2C_ADDRESS_PRIMARY, pins::OLED_I2C_ADDRESS_FALLBACK);
         }
     }
+    spawner.spawn(
+        flight_loop_task().expect("failed to spawn flight loop task"),
+    );
+
     let loop_rate_seconds = 1;
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.2.2/examples
@@ -93,9 +98,29 @@ async fn main(spawner: Spawner) -> ! {
     }
 }
 
-// TODO: add main flight loop task
-
 // TODO: add ground comms task
+
+/// Runs the flight state machine at a fixed rate.
+///
+/// Currently fed a zeroed `SensorSample` -- replace with real IMU/
+/// barometer readings once a driver for that hardware exists.
+#[embassy_executor::task]
+async fn flight_loop_task() -> ! {
+    let mut flight = FlightComputer::default();
+    let mut last_state = flight.state();
+
+    loop {
+        let sample = SensorSample::default();
+        let state = flight.update(sample);
+
+        if state != last_state {
+            info!("flight state: {:?} -> {:?}", last_state, state);
+            last_state = state;
+        }
+
+        Timer::after(Duration::from_millis(20)).await;
+    }
+}
 
 #[allow(
     clippy::large_stack_frames,
