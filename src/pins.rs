@@ -1,36 +1,37 @@
-//RADIO/LORA
-pub const LORA_SCK: u32 = 12;
-pub const LORA_MOSI: u32 = 11;
-pub const LORA_MISO: u32 = 13;
+//! Pin assignments for the TBeam S3 (LilyGo T-Beam Supreme).
+//!
+//! Verified against LilyGo's reference `utilities.h` for
+//! `T_BEAM_S3_SUPREME_SX1262` (LilyGo-LoRa-Series repo, examples/PMU).
 
-pub const LORA_CS: u32 = 10;
-pub const LORA_RST: u32 = 5;
-pub const LORA_BUSY: u32 = 4;
-pub const LORA_DIO1: u32 = 1;
+/// PMU/RTC I2C bus (AXP2101 power management IC).
+pub const PMU_SDA: u8 = 42;
+pub const PMU_SCL: u8 = 41;
+pub const PMU_IRQ: u8 = 40;
 
-pub const LORA_FREQ_HZ: u32 = 915_000_000;
+/// AXP2101 I2C address (fixed by the chip).
+pub const PMU_I2C_ADDRESS: u8 = 0x34;
 
-//SPI BUS (shared: IMU + SD)
-pub const SPI_SCK: u32 = 36;
-pub const SPI_MOSI: u32 = 35;
-pub const SPI_MISO: u32 = 37;
+/// Main peripheral I2C bus (OLED, sensors). Separate from the PMU bus.
+pub const OLED_SDA: u8 = 17;
+pub const OLED_SCL: u8 = 18;
 
-pub const IMU_CS: u32 = 34;
-pub const IMU_INT: u32 = 33;
+/// SH1106 I2C address. T-Beam Supreme sub-variants (VHF/UHF) wire the
+/// display to either 0x3D or 0x3C, with a QMC6310N magnetometer on the
+/// other address -- probe both at init rather than assuming one.
+pub const OLED_I2C_ADDRESS_PRIMARY: u8 = 0x3D;
+pub const OLED_I2C_ADDRESS_FALLBACK: u8 = 0x3C;
 
-pub const SD_CS: u32 = 47;
+/// LoRa radio BUSY signal (SX1262). Not a status LED -- the Supreme has no
+/// board-level status LED exposed in LilyGo's reference pin map. If you wire
+/// up your own bring-up LED, pick a free GPIO and avoid this one.
+pub const LORA_BUSY: u8 = 4;
 
-//I2C BUS 0 (sensors: baro, mag, oled)
-pub const I2C0_SDA: u32 = 17;
-pub const I2C0_SCL: u32 = 18;
-
-//I2C BUS 1 (pmu, rtc)
-pub const I2C1_SDA: u32 = 42;
-pub const I2C1_SCL: u32 = 41;
-
-pub const PMU_IRQ: u32 = 40;
-
-//GNSS
-pub const GNSS_TX: u32 = 8;
-pub const GNSS_RX: u32 = 9;
-pub const GNSS_PPS: u32 = 6;
+/// LoRa SX1262 SPI bus + control lines. Verified against Meshtastic's
+/// `variants/esp32s3/tbeam-s3-core/variant.h`, which targets this same
+/// board (confirmed by matching `I2C_SDA1`/`SCL1`/`PMU_IRQ` above).
+pub const LORA_SCK: u8 = 12;
+pub const LORA_MISO: u8 = 13;
+pub const LORA_MOSI: u8 = 11;
+pub const LORA_NSS: u8 = 10;
+pub const LORA_RESET: u8 = 5;
+pub const LORA_DIO1: u8 = 1;
