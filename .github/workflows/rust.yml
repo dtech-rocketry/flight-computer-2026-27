@@ -22,8 +22,8 @@ jobs:
       with:
         default: true
         buildtargets: esp32s3
-        ldproxy: false
-        
+        ldproxy: true
+
     - uses: Swatinem/rust-cache@v2
 
     - name: Build
