@@ -16,6 +16,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Install ESP Rust toolchain
+      uses: esp-rs/xtensa-toolchain@v1.5
+      with:
+        default: true
+        buildtargets: esp32s3
+        ldproxy: false
+        
+    - uses: Swatinem/rust-cache@v2
+
     - name: Build
       run: cargo build --verbose
       # TODO: make tests work proper
